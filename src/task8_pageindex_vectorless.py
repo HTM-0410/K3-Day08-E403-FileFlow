@@ -23,6 +23,8 @@ có field "deprecation" cảnh báo) và trả kết quả trong "retrieved_node
 """
 
 import os
+import json
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -36,21 +38,64 @@ def upload_documents():
     """
     Upload toàn bộ markdown documents lên PageIndex.
     """
-    # TODO: Implement upload
-    #
-    # Tham khảo: https://github.com/VectifyAI/PageIndex
-    #
-    # from pageindex.client import PageIndexClient
-    #
-    # client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
-    #
-    # for md_file in STANDARDIZED_DIR.rglob("*.md"):
-    #     # Lưu ý: PageIndex nhận PDF, không nhận .md trực tiếp — có thể cần
-    #     # convert markdown sang PDF đơn giản bằng fpdf2 trước khi upload.
-    #     resp = client.submit_document(str(pdf_path))
-    #     doc_id = resp.get("doc_id") or resp.get("id")
-    #     print(f"  ✓ Uploaded: {md_file.name} -> {doc_id}")
-    raise NotImplementedError("Implement upload_documents")
+    if not PAGEINDEX_API_KEY:
+        print("⚠ PAGEINDEX_API_KEY not set")
+        return []
+    
+    try:
+        from pageindex.client import PageIndexClient
+    except ImportError:
+        print("⚠ pageindex package not installed")
+        return []
+    
+    client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
+    uploaded_ids = []
+    
+    for md_file in STANDARDIZED_DIR.rglob("*.md"):
+        try:
+            # Convert markdown to PDF first
+            from fpdf import FPDF
+            
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+            
+            content = md_file.read_text(encoding="utf-8")
+            pdf.set_font("Helvetica", size=10)
+            
+            for line in content.split('\n'):
+                if line.startswith('# '):
+                    pdf.set_font("Helvetica", size=14)
+                    pdf.multi_cell(0, 8, line[2:])
+                    pdf.set_font("Helvetica", size=10)
+                elif line.startswith('## '):
+                    pdf.set_font("Helvetica", size=12)
+                    pdf.multi_cell(0, 7, line[3:])
+                    pdf.set_font("Helvetica", size=10)
+                elif line.startswith('### '):
+                    pdf.set_font("Helvetica", size=11)
+                    pdf.multi_cell(0, 6, line[4:])
+                    pdf.set_font("Helvetica", size=10)
+                else:
+                    pdf.multi_cell(0, 5, line)
+            
+            temp_pdf = md_file.with_suffix('.pdf')
+            pdf.output(str(temp_pdf))
+            
+            # Upload to PageIndex
+            resp = client.submit_document(str(temp_pdf))
+            doc_id = resp.get("doc_id") or resp.get("id")
+            uploaded_ids.append({"file": md_file.name, "doc_id": doc_id})
+            print(f"  ✓ Uploaded: {md_file.name} -> {doc_id}")
+            
+            # Clean up temp PDF
+            temp_pdf.unlink()
+            
+        except Exception as e:
+            print(f"  ✗ Failed: {md_file.name}: {e}")
+            continue
+    
+    return uploaded_ids
 
 
 def pageindex_search(query: str, top_k: int = 5) -> list[dict]:
@@ -70,30 +115,81 @@ def pageindex_search(query: str, top_k: int = 5) -> list[dict]:
             'source': 'pageindex'   # Đánh dấu nguồn retrieval
         }
     """
-    # TODO: Implement PageIndex query
-    #
-    # from pageindex.client import PageIndexClient
-    #
-    # client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
-    # resp = client.submit_query(doc_id=doc_id, query=query)
-    # retrieval_id = resp.get("retrieval_id") or resp.get("id")
-    #
-    # # Poll cho đến khi status == "completed"
-    # retrieval = client.get_retrieval(retrieval_id)
-    #
-    # # Parse retrieval["retrieved_nodes"] — mỗi node có "relevant_contents"
-    # results = []
-    # for node in retrieval.get("retrieved_nodes", [])[:2]:
-    #     for group in node.get("relevant_contents", []):
-    #         for item in group:
-    #             results.append({
-    #                 "content": item.get("relevant_content", ""),
-    #                 "score": ...,  # PageIndex không trả score trực tiếp — tự gán theo rank
-    #                 "metadata": {"section": item.get("section_title")},
-    #                 "source": "pageindex",
-    #             })
-    # return results[:top_k]
-    raise NotImplementedError("Implement pageindex_search")
+    if not PAGEINDEX_API_KEY:
+        print("⚠ PAGEINDEX_API_KEY not set")
+        return []
+    
+    try:
+        from pageindex.client import PageIndexClient
+    except ImportError:
+        print("⚠ pageindex package not installed")
+        return []
+    
+    client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
+    
+    # Submit query
+    try:
+        resp = client.submit_query(query=query)
+        retrieval_id = resp.get("retrieval_id") or resp.get("id")
+        
+        # Poll until completed
+        max_retries = 10
+        for _ in range(max_retries):
+            time.sleep(1)
+            retrieval = client.get_retrieval(retrieval_id)
+            if retrieval.get("status") == "completed":
+                break
+            if retrieval.get("status") == "failed":
+                print("⚠ PageIndex retrieval failed")
+                return []
+        
+        # Parse response
+        results = []
+        retrieved_nodes = retrieval.get("retrieved_nodes", [])
+        
+        for rank, node in enumerate(retrieved_nodes[:top_k], 1):
+            relevant_contents = node.get("relevant_contents", [])
+            
+            for group in relevant_contents:
+                if isinstance(group, list):
+                    for item in group:
+                        if isinstance(item, dict):
+                            content = item.get("relevant_content", "")
+                            if content:
+                                results.append({
+                                    "content": content,
+                                    "score": float(1.0 - rank * 0.15),
+                                    "metadata": {
+                                        "section": item.get("section_title", ""),
+                                        "source": "pageindex"
+                                    },
+                                    "source": "pageindex"
+                                })
+                                if len(results) >= top_k:
+                                    break
+                elif isinstance(group, dict):
+                    content = group.get("relevant_content", "")
+                    if content:
+                        results.append({
+                            "content": content,
+                            "score": float(1.0 - rank * 0.15),
+                            "metadata": {
+                                "section": group.get("section_title", ""),
+                                "source": "pageindex"
+                            },
+                            "source": "pageindex"
+                        })
+                        if len(results) >= top_k:
+                            break
+            
+            if len(results) >= top_k:
+                break
+        
+        return results[:top_k]
+        
+    except Exception as e:
+        print(f"⚠ PageIndex error: {e}")
+        return []
 
 
 if __name__ == "__main__":

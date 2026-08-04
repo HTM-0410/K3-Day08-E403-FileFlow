@@ -1,0 +1,9 @@
+{
+  "url": "https://example.com/nghi-phep",
+  "title": "Nghỉ phép năm - Quy định và cách tính",
+  "topic": "nghi-phep",
+  "description": "Hướng dẫn chi tiết về nghỉ phép năm, nghỉ lễ, nghỉ việc riêng theo Bộ luật Lao động.",
+  "content_markdown": "# Nghỉ phép năm theo Bộ luật Lao động 2019\n\n## Điều 111: Nghỉ phép hàng năm\n\n### Số ngày nghỉ phép\n\n| Đối tượng | Số ngày nghỉ |\n|-----------|--------------|\n| Người lao động bình thường | **12 ngày/năm** |\n| Người làm nghề nặng nhọc, độc hại | **14 ngày/năm** |\n| Người khuyết tật | **14 ngày/năm** |\n| Người dưới 18 tuổi | **14 ngày/năm** |\n\n### Công thức tính phép năm:\n\n```\nSố ngày nghỉ = (Số tháng thực tế làm / 12) × Số ngày nghỉ hưởng nguyên\n```\n\n### Ví dụ:\n- Làm được 6 tháng → Nghỉ 6 ngày phép (với 12 ngày/năm)\n\n## Điều 112: Nghỉ lễ, tết\n\n### Ngày nghỉ lễ, tết (2024):\n\n1. **Tết Dương lịch**: 01 ngày (01/01)\n2. **Tết Nguyên đán**: 05 ngày\n3. **Giỗ Tổ Hùng Vương**: 01 ngày (10/3 âm lịch)\n4. **Ngày Chiến thắng**: 01 ngày (30/4)\n5. **Ngày Quốc khánh**: 02 ngày (02-03/9)\n6. **Ngày Lao động**: 01 ngày (01/5)\n\n**Tổng cộng: 11 ngày nghỉ lễ có hưởng lương**\n\n## Điều 113: Nghỉ việc riêng có hưởng lương\n\n| Trường hợp | Số ngày nghỉ |\n|------------|--------------|\n| Kết hôn | 03 ngày |\n| Con kết hôn | 01 ngày |\n| Bố/mẹ vợ/chồng, vợ/chồng, con chết | 03 ngày |\n",
+  "date_crawled": "2026-08-04T10:38:33.335440",
+  "source": "luatvietnam.vn"
+}
